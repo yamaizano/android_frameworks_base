@@ -68,6 +68,7 @@ import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.OperationCanceledException;
 import android.os.Parcelable;
+import android.os.RemoteException;
 import android.provider.DocumentsContract;
 import android.provider.DocumentsContract.Document;
 import android.text.format.DateUtils;
@@ -102,6 +103,7 @@ import com.android.documentsui.model.DocumentInfo;
 import com.android.documentsui.model.RootInfo;
 import com.google.android.collect.Lists;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -150,6 +152,7 @@ public class DirectoryFragment extends Fragment {
     private static final String EXTRA_IGNORE_STATE = "ignoreState";
 
     private final int mLoaderId = 42;
+    private DirectoryLoader mLoader;
 
     public static void showNormal(FragmentManager fm, RootInfo root, DocumentInfo doc, int anim) {
         show(fm, TYPE_NORMAL, root, doc, null, anim);
@@ -343,6 +346,8 @@ public class DirectoryFragment extends Fragment {
         getLoaderManager().restartLoader(mLoaderId, null, mCallbacks);
 
         updateDisplayState();
+
+        mLoader = new DirectoryLoader(context);
     }
 
     @Override
@@ -671,10 +676,9 @@ public class DirectoryFragment extends Fragment {
                     final RootInfo root = getArguments().getParcelable(EXTRA_ROOT);
 
                     // We get the contents of the directory
-                    DirectoryLoader loader = new DirectoryLoader(
-                            context, mType, root, doc, contentsUri, SORT_ORDER_UNKNOWN);
+                    mLoader.init(mType, root, doc, contentsUri, SORT_ORDER_UNKNOWN);
 
-                    DirectoryResult result = loader.loadInBackground();
+                    DirectoryResult result = mLoader.loadInBackground();
                     Cursor cursor = result.cursor;
 
                     // Build a list of the docs to delete, and delete them
@@ -690,8 +694,8 @@ public class DirectoryFragment extends Fragment {
 
 
                 DocumentsContract.deleteDocument(client, doc.derivedUri);
-            } catch (Exception e) {
-                Log.w(TAG, "Failed to delete " + doc);
+            } catch (RemoteException e) {
+                Log.w(TAG, "Failed to delete " + doc, e);
                 hadTrouble = true;
             } finally {
                 ContentProviderClient.releaseQuietly(client);
@@ -1178,10 +1182,12 @@ public class DirectoryFragment extends Fragment {
                             context, mThumbSize);
                     thumbs.put(mUri, result);
                 }
+            } catch (OperationCanceledException e) {
+                // Do nothing
+            } catch (RemoteException e) {
+                Log.w(TAG, "Failed to load thumbnail for " + mUri + ": " + e);
             } catch (Exception e) {
-                if (!(e instanceof OperationCanceledException)) {
-                    Log.w(TAG, "Failed to load thumbnail for " + mUri + ": " + e);
-                }
+                Log.w(TAG, "Failed to load thumbnail for " + mUri + ": " + e);
             } finally {
                 ContentProviderClient.releaseQuietly(client);
             }
