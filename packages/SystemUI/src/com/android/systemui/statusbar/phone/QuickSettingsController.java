@@ -41,6 +41,7 @@ import static com.android.internal.util.cm.QSConstants.TILE_SCREENTIMEOUT;
 import static com.android.internal.util.cm.QSConstants.TILE_SETTINGS;
 import static com.android.internal.util.cm.QSConstants.TILE_SLEEP;
 import static com.android.internal.util.cm.QSConstants.TILE_SYNC;
+import static com.android.internal.util.cm.QSConstants.TILE_THEMES;
 import static com.android.internal.util.cm.QSConstants.TILE_TORCH;
 import static com.android.internal.util.cm.QSConstants.TILE_USER;
 import static com.android.internal.util.cm.QSConstants.TILE_VOLUME;
@@ -98,6 +99,7 @@ import com.android.systemui.quicksettings.RingerModeTile;
 import com.android.systemui.quicksettings.ScreenTimeoutTile;
 import com.android.systemui.quicksettings.SleepScreenTile;
 import com.android.systemui.quicksettings.SyncTile;
+import com.android.systemui.quicksettings.ThemesTile;
 import com.android.systemui.quicksettings.ToggleLockscreenTile;
 import com.android.systemui.quicksettings.TorchTile;
 import com.android.systemui.quicksettings.UsbTetherTile;
@@ -106,7 +108,7 @@ import com.android.systemui.quicksettings.VolumeTile;
 import com.android.systemui.quicksettings.RemoteDisplayTile;
 import com.android.systemui.quicksettings.WiFiTile;
 import com.android.systemui.quicksettings.WifiAPTile;
-import com.android.systemui.quicksettings.PowerMenuTile; 
+import com.android.systemui.quicksettings.PowerMenuTile;
 import com.android.systemui.statusbar.phone.QuickSettingsContainerView.QSSize;
 import com.android.systemui.statusbar.policy.NetworkController;
 
@@ -296,7 +298,9 @@ public class QuickSettingsController {
             } else if (tile.equals(TILE_COMPASS)) {
                 qs = new CompassTile(mContext, this);
             } else if (tile.equals(TILE_POWER)) {
-                qs = new PowerMenuTile(mContext, this);     
+                qs = new PowerMenuTile(mContext, this); 
+            } else if (tile.equals(TILE_THEMES)) {
+                qs = new ThemesTile(mContext, this);
             }
 
             if (qs != null) {
