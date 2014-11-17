@@ -821,6 +821,9 @@ public abstract class BaseStatusBar extends SystemUI implements
                 if (packageNameF == null) return false;
                 if (v.getWindowToken() == null) return false;
 
+                // protected apps don't get long click listener
+                if (isPackageProtected(packageNameF)) return false;
+
                 mNotificationBlamePopup = new PopupMenu(mContext, v);
                 mNotificationBlamePopup.getMenuInflater().inflate(
                         R.menu.notification_popup_menu,
@@ -848,17 +851,18 @@ public abstract class BaseStatusBar extends SystemUI implements
                 } else {
                     try {
                         PackageManager pm = (PackageManager) mContext.getPackageManager();
-                        ApplicationInfo mAppInfo = pm.getApplicationInfo(packageNameF, 0);
+                        ApplicationInfo mAppInfo = null;
                         DevicePolicyManager mDpm = (DevicePolicyManager) mContext.
                                 getSystemService(Context.DEVICE_POLICY_SERVICE);
+                        mAppInfo = pm.getApplicationInfo(packageNameF, 0);
                         if ((mAppInfo.flags&(ApplicationInfo.FLAG_SYSTEM
-                              | ApplicationInfo.FLAG_ALLOW_CLEAR_USER_DATA))
-                              == ApplicationInfo.FLAG_SYSTEM
-                              || mDpm.packageHasActiveAdmins(packageNameF)) {
+                                | ApplicationInfo.FLAG_ALLOW_CLEAR_USER_DATA))
+                                == ApplicationInfo.FLAG_SYSTEM
+                                || mDpm.packageHasActiveAdmins(packageNameF)) {
                             mNotificationBlamePopup.getMenu()
-                            .findItem(R.id.notification_inspect_item_wipe_app).setEnabled(false);
+                                    .findItem(R.id.notification_inspect_item_wipe_app).setEnabled(false);
                             mNotificationBlamePopup.getMenu()
-                            .findItem(R.id.notification_inspect_item_uninstall).setEnabled(false);
+                                    .findItem(R.id.notification_inspect_item_uninstall).setEnabled(false);
                         }
                     } catch (NameNotFoundException ex) {
                         Slog.e(TAG, "Failed looking up ApplicationInfo for " + packageNameF, ex);
@@ -1410,23 +1414,36 @@ public abstract class BaseStatusBar extends SystemUI implements
 
         View contentViewLocal = null;
         View bigContentViewLocal = null;
-        final ThemeConfig themeConfig = mContext.getResources().getConfiguration().themeConfig;
-        String themePackageName = themeConfig != null ?
-                themeConfig.getOverlayPkgNameForApp(mContext.getPackageName()) : null;
-        try {
-            contentViewLocal = contentView.apply(mContext, adaptive, mOnClickHandler,
-                    themePackageName);
-            if (bigContentView != null) {
-                bigContentViewLocal = bigContentView.apply(mContext, adaptive, mOnClickHandler,
+        if (isPackageProtected(entry.notification.getPackageName())) {
+            // let's construct a new notification for this protected app
+            ViewGroup base = (ViewGroup) inflater.inflate(com.android.internal.R.layout.notification_template_base, row, false);
+            TextView title = (TextView) base.findViewById(com.android.internal.R.id.title);
+            title.setText(R.string.protected_app_notification_title);
+            TextView text2 = (TextView) base.findViewById(com.android.internal.R.id.text2);
+            text2.setVisibility(View.VISIBLE);
+            text2.setText(R.string.protected_app_notification_summary);
+            ImageView icon = (ImageView) base.findViewById(com.android.internal.R.id.icon);
+            icon.setImageResource(R.drawable.ic_protected_apps);
+
+            contentViewLocal = base;
+        } else {
+            final ThemeConfig themeConfig = mContext.getResources().getConfiguration().themeConfig;
+            String themePackageName = themeConfig != null ?
+                    themeConfig.getOverlayPkgNameForApp(mContext.getPackageName()) : null;
+            try {
+                contentViewLocal = contentView.apply(mContext, adaptive, mOnClickHandler,
                         themePackageName);
+                if (bigContentView != null) {
+                    bigContentViewLocal = bigContentView.apply(mContext, adaptive, mOnClickHandler,
+                            themePackageName);
+                }
+            } catch (RuntimeException e) {
+                final String ident = sbn.getPackageName() + "/0x" + Integer.toHexString(sbn.getId());
+                Log.e(TAG, "couldn't inflate view for notification " + ident, e);
+                return false;
             }
         }
-        catch (RuntimeException e) {
-            final String ident = sbn.getPackageName() + "/0x" + Integer.toHexString(sbn.getId());
-            Log.e(TAG, "couldn't inflate view for notification " + ident, e);
-            return false;
-        }
-
+        
         if (contentViewLocal != null) {
             SizeAdaptiveLayout.LayoutParams params =
                     new SizeAdaptiveLayout.LayoutParams(contentViewLocal.getLayoutParams());
@@ -1470,6 +1487,16 @@ public abstract class BaseStatusBar extends SystemUI implements
     }
 
     public class NotificationClicker implements View.OnClickListener {
+        public static final String ACTION_BROADCAST_RESULT =
+                "com.android.settings.applications.LockPatternActivity.ACTION_BROADCAST_RESULT";
+
+        // used for incoming and outgoing broadcast intents
+        public static final String EXTRA_BROADCAST_RESULT = "broadcast_result";
+
+        public final ComponentName LOCK_PATTERN_COMPONENT =
+                new ComponentName("com.android.settings",
+                        "com.android.settings.applications.LockPatternActivity");
+
         private KeyguardTouchDelegate mKeyguard;
         private PendingIntent mPendingIntent;
         private Intent mIntent;
@@ -1477,6 +1504,9 @@ public abstract class BaseStatusBar extends SystemUI implements
         public String mTag;
         public int mId;
         public boolean mFloat;
+        private boolean mProtected;
+
+        private BroadcastReceiver mProtectedAppReceiver;
 
         public NotificationClicker(PendingIntent intent, String pkg, String tag, int id) {
             this();
@@ -1484,6 +1514,7 @@ public abstract class BaseStatusBar extends SystemUI implements
             mPkg = pkg;
             mTag = tag;
             mId = id;
+            mProtected = isPackageProtected(pkg);
         }
 
         public NotificationClicker(Intent intent) {
@@ -1513,6 +1544,39 @@ public abstract class BaseStatusBar extends SystemUI implements
             } catch (RemoteException e) {
             }
 
+            int[] pos = new int[2];
+            v.getLocationOnScreen(pos);
+            final Rect r = new Rect(pos[0], pos[1], pos[0]+v.getWidth(), pos[1]+v.getHeight());
+
+            if (mProtected) {
+                mProtectedAppReceiver = new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        boolean result = intent.getBooleanExtra("broadcast_result", false);
+                        if (result) {
+                            doRealClick(r);
+                        }
+                        mContext.unregisterReceiver(this);
+                    }
+                };
+                mContext.registerReceiver(mProtectedAppReceiver,
+                        new IntentFilter(ACTION_BROADCAST_RESULT));
+                Intent protectedIntent = new Intent();
+                protectedIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                protectedIntent.setComponent(LOCK_PATTERN_COMPONENT);
+                protectedIntent.putExtra(EXTRA_BROADCAST_RESULT, true);
+                mContext.startActivity(protectedIntent);
+
+                // close the shade if it was open
+                animateCollapsePanels(CommandQueue.FLAG_EXCLUDE_NONE);
+                visibilityChanged(false);
+                return;
+            } else {
+                doRealClick(r);
+            }
+        }
+
+        private void doRealClick(Rect r) {
             int flags = Intent.FLAG_FLOATING_WINDOW | Intent.FLAG_ACTIVITY_CLEAR_TASK;
             boolean allowed = true; // default on, except for preloaded false
             try {
@@ -1522,12 +1586,10 @@ public abstract class BaseStatusBar extends SystemUI implements
                 // System is dead
             }
             if (mPendingIntent != null) {
-                int[] pos = new int[2];
-                v.getLocationOnScreen(pos);
+
                 Intent overlay = new Intent();
                 if (mFloat && allowed) overlay.addFlags(flags);
-                overlay.setSourceBounds(
-                        new Rect(pos[0], pos[1], pos[0] + v.getWidth(), pos[1] + v.getHeight()));
+                overlay.setSourceBounds(r);
                 try {
                     mPendingIntent.send(mContext, 0, overlay);
                 } catch (PendingIntent.CanceledException e) {
@@ -1636,23 +1698,47 @@ public abstract class BaseStatusBar extends SystemUI implements
         }
     }
 
+    private boolean isPackageProtected(String packageName) {
+        try {
+            ApplicationInfo info = mContext.getPackageManager().getApplicationInfo(packageName, 0);
+            return info.protect;
+        } catch (NameNotFoundException e) {
+            Log.d(TAG, "protected package not found.", e);
+        }
+        return false;
+    }
+
     protected NotificationData.Entry createNotificationViews(IBinder key,
             StatusBarNotification notification) {
         if (DEBUG) {
             Log.d(TAG, "createNotificationViews(key=" + key + ", notification=" + notification);
         }
+
+        boolean protectedApp = isPackageProtected(notification.getPackageName());
+        if (protectedApp) {
+            notification.getNotification().icon = com.android.systemui.R.drawable.ic_protected_apps;
+            notification.getNotification().iconLevel = 0;
+            notification.getNotification().number = 0;
+            if (notification.getNotification().tickerText != null) {
+                // null out ticker
+                notification.getNotification().tickerText = null;
+            }
+        }
+
         // Construct the icon.
         final StatusBarIconView iconView = new StatusBarIconView(mContext,
                 notification.getPackageName() + "/0x" + Integer.toHexString(notification.getId()),
                 notification.getNotification());
         iconView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
 
-        final StatusBarIcon ic = new StatusBarIcon(notification.getPackageName(),
+        final StatusBarIcon ic = new StatusBarIcon(
+                // for protected apps we need to use system ui's package name
+                protectedApp ? mContext.getPackageName() : notification.getPackageName(),
                 notification.getUser(),
-                    notification.getNotification().icon,
-                    notification.getNotification().iconLevel,
-                    notification.getNotification().number,
-                    notification.getNotification().tickerText);
+                notification.getNotification().icon,
+                notification.getNotification().iconLevel,
+                notification.getNotification().number,
+                notification.getNotification().tickerText);
         if (!iconView.set(ic)) {
             handleNotificationError(key, notification, "Couldn't create icon: " + ic);
             return null;
