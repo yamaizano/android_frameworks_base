@@ -323,7 +323,6 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
     private DockBatteryMeterView mDockBatteryView;
 
     // clock
-    private boolean mShowClock = true;
     private boolean mClockEnabled;
 
     // position
@@ -4100,10 +4099,6 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
                     Settings.System.NAVBAR_LEFT_IN_LANDSCAPE, 0) == 1;
             mNavigationBarView.setLeftInLandscape(navLeftInLandscape);
         }
-
-        mClockEnabled = Settings.System.getIntForUser(resolver,
-                Settings.System.STATUS_BAR_CLOCK, 1, mCurrentUserId) != 0;
-        updateClockVisibility();
 
         int signalStyle = Settings.System.getIntForUser(resolver,
                 Settings.System.STATUS_BAR_SIGNAL_TEXT,
