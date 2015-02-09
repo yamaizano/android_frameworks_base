@@ -26,8 +26,8 @@
     <!-- QS Tiles -->
     <string name="quick_settings_sync">Sync</string>
     <string name="quick_settings_sync_off">Sync off</string>
-
-    <!-- Power menu -->
     <string name="quick_settings_power_menu_label">Power Menu</string>
+    <string name="quick_settings_battery_saver">Battery saver</string>
+    <string name="quick_settings_battery_saver_off">Battery saver off</string>
 
 </resources>
