@@ -712,21 +712,6 @@ public class ThemeService extends IThemeService.Stub {
                         removePerAppThemes);
                 ThemeConfig newConfig = themeBuilder.build();
 
-                // If this is a theme upgrade then new config equals existing config. The result
-                // is that the config is not considered changed and therefore not propagated,
-                // which can be problem if the APK path changes (ex theme-1.apk -> theme-2.apk)
-                if (newConfig.equals(config.themeConfig)) {
-                    // We can't just use null for the themeConfig, it won't be registered as
-                    // a changed config value because of the way equals in config had to be written.
-                    final String defaultThemePkg =
-                            Settings.Secure.getString(mContext.getContentResolver(),
-                            Settings.Secure.DEFAULT_THEME_PACKAGE);
-                    ThemeConfig.Builder defaultBuilder =
-                            createBuilderFrom(config, components, defaultThemePkg);
-                    config.themeConfig = defaultBuilder.build();
-                    am.updateConfiguration(config);
-                }
-
                 config.themeConfig = newConfig;
                 am.updateConfiguration(config);
             } catch (RemoteException e) {
@@ -774,6 +759,8 @@ public class ThemeService extends IThemeService.Stub {
                 builder.overlay(appPkgName, appOverlays.get(appPkgName));
             }
         }
+
+        builder.setThemeChangeTimestamp(System.currentTimeMillis());
 
         return builder;
     }
