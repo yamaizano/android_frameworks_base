@@ -49,6 +49,7 @@ public class QSConstants {
     public static final String TILE_POWER_MENU = "power_menu";
     public static final String TILE_BATTERY_SAVER = "battery_saver";
     public static final String TILE_BRIGHTNESS = "brightness";
+    public static final String TILE_LIVE_DISPLAY = "live_display";
 
     // Order matters
     protected static final ArrayList<String> TILES_DEFAULT = new ArrayList<String>();
@@ -88,5 +89,6 @@ public class QSConstants {
         TILES_AVAILABLE.add(TILE_POWER_MENU);
         TILES_AVAILABLE.add(TILE_BATTERY_SAVER);
         TILES_AVAILABLE.add(TILE_BRIGHTNESS);
+        TILES_AVAILABLE.add(TILE_LIVE_DISPLAY);
     }
 }
