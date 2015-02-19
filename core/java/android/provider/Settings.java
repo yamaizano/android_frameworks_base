@@ -6303,7 +6303,7 @@ public final class Settings {
          */
         public static final String QS_USE_FOUR_COLUMNS = "qs_use_four_columns";
 
-        /*
+        /**
          * String to contain power menu actions
          * @hide
          */
