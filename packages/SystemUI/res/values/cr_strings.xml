@@ -37,4 +37,7 @@
     <!-- Content description of the power button for accessibility (not shown on the screen). [CHAR LIMIT=NONE] -->
     <string name="accessibility_power">Power</string>
 
+    <!-- Power menu on navring targets -->
+    <string name="navring_action_power_menu">Power Menu</string>
+
 </resources>
