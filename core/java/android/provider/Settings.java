@@ -6481,6 +6481,13 @@ public final class Settings {
         public static final String LIVE_DISPLAY_COLOR_MATRIX = "live_display_color_matrix";
 
         /**
+         * Whether to show the lockscreen visualizer.
+         * 0 will disable it, anything else will enable it. Default is on.
+         * @hide
+         */
+        public static final String LOCKSCREEN_VISUALIZER_ENABLED = "lockscreen_visualizer";
+
+        /**
          * The global recents long press activity chosen by the user.
          * This setting is stored as a flattened component name as
          * per {@link ComponentName#flattenToString()}.
