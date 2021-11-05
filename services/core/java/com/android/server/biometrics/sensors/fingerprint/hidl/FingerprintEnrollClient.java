@@ -93,7 +93,7 @@ public class FingerprintEnrollClient extends EnrollClient<IBiometricsFingerprint
 
     @Override
     protected void startHalOperation() {
-        mSensorOverlays.show(getSensorId(), getOverlayReasonFromEnrollReason(mEnrollReason), this);
+        mSensorOverlays.show(getFreshDaemon(), getSensorId(), getOverlayReasonFromEnrollReason(mEnrollReason), this);
 
         BiometricNotificationUtils.cancelBadCalibrationNotification(getContext());
         try {
@@ -103,14 +103,14 @@ public class FingerprintEnrollClient extends EnrollClient<IBiometricsFingerprint
             Slog.e(TAG, "Remote exception when requesting enroll", e);
             onError(BiometricFingerprintConstants.FINGERPRINT_ERROR_HW_UNAVAILABLE,
                     0 /* vendorCode */);
-            mSensorOverlays.hide(getSensorId());
+            mSensorOverlays.hide(getFreshDaemon(), getSensorId());
             mCallback.onClientFinished(this, false /* success */);
         }
     }
 
     @Override
     protected void stopHalOperation() {
-        mSensorOverlays.hide(getSensorId());
+        mSensorOverlays.hide(getFreshDaemon(), getSensorId());
 
         try {
             getFreshDaemon().cancel();
@@ -130,7 +130,7 @@ public class FingerprintEnrollClient extends EnrollClient<IBiometricsFingerprint
                 controller -> controller.onEnrollmentProgress(getSensorId(), remaining));
 
         if (remaining == 0) {
-            mSensorOverlays.hide(getSensorId());
+            mSensorOverlays.hide(getFreshDaemon(), getSensorId());
         }
     }
 
@@ -149,7 +149,7 @@ public class FingerprintEnrollClient extends EnrollClient<IBiometricsFingerprint
     public void onError(int errorCode, int vendorCode) {
         super.onError(errorCode, vendorCode);
 
-        mSensorOverlays.hide(getSensorId());
+        mSensorOverlays.hide(getFreshDaemon(), getSensorId());
     }
 
     @Override
