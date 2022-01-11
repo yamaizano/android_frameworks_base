@@ -498,7 +498,7 @@ public class CameraDeviceImpl extends CameraDevice
                     if (inputConfig != null) {
                         int streamId = mRemoteDevice.createInputStream(inputConfig.getWidth(),
                                 inputConfig.getHeight(), inputConfig.getFormat(),
-                                inputConfig.isMultiResolution() || mForceMultiResolution);
+                                inputConfig.isMultiResolution());
                         mConfiguredInput = new SimpleEntry<Integer, InputConfiguration>(
                                 streamId, inputConfig);
                     }
