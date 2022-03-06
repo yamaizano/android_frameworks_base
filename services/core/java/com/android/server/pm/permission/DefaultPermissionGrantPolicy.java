@@ -895,6 +895,11 @@ final class DefaultPermissionGrantPolicy {
         grantPermissionsToPackage(pm, "com.google.android.googlequicksearchbox", userId,
                 false /* ignoreSystemPackage */, true /*whitelistRestrictedPermissions*/,
                 PHONE_PERMISSIONS);
+
+        // Flipendo
+        grantSystemFixedPermissionsToSystemPackage(pm,
+                getDefaultProviderAuthorityPackage("com.google.android.flipendo", userId),
+                userId, SUSPEND_APP_PERMISSIONS);
     }
 
     private String getDefaultSystemHandlerActivityPackageForCategory(PackageManagerWrapper pm,
