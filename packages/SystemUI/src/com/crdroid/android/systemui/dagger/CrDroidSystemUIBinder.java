@@ -24,9 +24,9 @@ import com.android.systemui.dagger.SystemUIBinder;
 import com.android.systemui.theme.ThemeOverlayController;
 
 import com.google.android.systemui.columbus.ColumbusTargetRequestService;
-import com.google.android.systemui.gamedashboard.GameMenuActivity;
 
 import com.crdroid.android.systemui.CrDroidServices;
+import com.crdroid.android.systemui.gamedashboard.GameMenuActivityWrapper;
 import com.crdroid.android.systemui.theme.CrDroidThemeOverlayController;
 
 import dagger.Binds;
@@ -57,6 +57,6 @@ public abstract class CrDroidSystemUIBinder extends SystemUIBinder {
      */
     @Binds
     @IntoMap
-    @ClassKey(GameMenuActivity.class)
-    public abstract Activity bindGameMenuActivity(GameMenuActivity activity);
+    @ClassKey(GameMenuActivityWrapper.class)
+    public abstract Activity bindGameMenuActivity(GameMenuActivityWrapper activity);
 }

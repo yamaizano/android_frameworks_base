@@ -939,7 +939,7 @@
         <!-- Game Dashboard -->
         <activity
             android:theme="@style/GameMenuTheme"
-            android:name="com.google.android.systemui.gamedashboard.GameMenuActivity"
+            android:name="com.crdroid.android.systemui.gamedashboard.GameMenuActivityWrapper"
             android:exported="false"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
