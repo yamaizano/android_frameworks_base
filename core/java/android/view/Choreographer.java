@@ -891,6 +891,9 @@ public final class Choreographer {
                 mLastVsyncEventData = vsyncEventData;
             }
 
+            if (frameIntervalNanos > 0 && frameIntervalNanos != mFrameIntervalNanos) {
+                mFrameIntervalNanos = frameIntervalNanos;
+            }
             AnimationUtils.lockAnimationClock(frameTimeNanos / TimeUtils.NANOS_PER_MS);
 
             mFrameInfo.markInputHandlingStart();
