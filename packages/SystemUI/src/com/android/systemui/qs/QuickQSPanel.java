@@ -40,6 +40,8 @@ public class QuickQSPanel extends QSPanel implements TunerService.Tunable {
     // A fallback value for max tiles number when setting via Tuner (parseNumTiles)
     public static final int TUNER_MAX_TILES_FALLBACK = 6;
 
+    private static final int NUM_COLUMNS_ID = R.integer.quick_settings_num_columns;
+
     private boolean mDisabledByPolicy;
     private int mMaxTiles;
     private int mColumns;
@@ -139,7 +141,7 @@ public class QuickQSPanel extends QSPanel implements TunerService.Tunable {
 
     public void setMaxTiles(int maxTiles) {
         mColumns = TileUtils.getQSColumnsCount(mContext,
-            getResources().getInteger(R.integer.quick_qs_panel_max_tiles));
+            getResources().getInteger(NUM_COLUMNS_ID));
         if (mColumns == 2) maxTiles = getResources().getInteger(R.integer.quick_qs_panel_max_tiles);
         if (maxTiles > mColumns && (maxTiles % mColumns != 0)) {
             maxTiles--;
@@ -305,7 +307,7 @@ public class QuickQSPanel extends QSPanel implements TunerService.Tunable {
 
         @Override
         public int getResourceColumns() {
-            int columns = getResources().getInteger(R.integer.quick_qs_panel_max_tiles);
+            int columns = getResources().getInteger(NUM_COLUMNS_ID);
             return TileUtils.getQSColumnsCount(mContext, columns);
         }
 

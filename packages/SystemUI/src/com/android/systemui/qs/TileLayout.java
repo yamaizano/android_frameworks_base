@@ -25,6 +25,8 @@ public class TileLayout extends ViewGroup implements QSTileLayout {
 
     private static final String TAG = "TileLayout";
 
+    private static final int NUM_COLUMNS_ID = R.integer.quick_settings_num_columns;
+
     protected int mColumns;
     protected int mCellWidth;
     protected int mCellHeightResId = R.dimen.qs_tile_height;
@@ -307,8 +309,8 @@ public class TileLayout extends ViewGroup implements QSTileLayout {
     }
 
     public int getResourceColumns() {
-        int resourceColumns = Math.max(2, getResources().getInteger(R.integer.quick_settings_num_columns));
-        return TileUtils.getQSColumnsCount(mContext, resourceColumns);
+        int columns = getResources().getInteger(NUM_COLUMNS_ID);
+        return TileUtils.getQSColumnsCount(mContext, columns);
     }
 
     @Override
