@@ -128,8 +128,10 @@ public class QuickQSPanelController extends QSPanelControllerBase<QuickQSPanel>
     }
 
     private void updateConfig() {
-        int newMaxTiles = getResources().getInteger(R.integer.quick_qs_panel_max_tiles);
-        mView.setMaxTiles(TileUtils.getQSColumnsCount(getContext(), newMaxTiles));
+        int maxTiles = getResources().getInteger(R.integer.quick_qs_panel_max_tiles);
+        int columns = getResources().getInteger(R.integer.quick_settings_num_columns);
+        columns = TileUtils.getQSColumnsCount(getContext(), columns);
+        mView.setMaxTiles(Math.max(columns, maxTiles));
         setTiles();
     }
 
