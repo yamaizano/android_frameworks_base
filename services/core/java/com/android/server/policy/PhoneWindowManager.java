@@ -606,6 +606,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     // Tracks user-customisable behavior for certain key events
     private Action mBackLongPressAction;
+    private Action mBackDoubleTapAction;
     private Action mHomeLongPressAction;
     private Action mHomeDoubleTapAction;
     private Action mMenuPressAction;
@@ -932,6 +933,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     LineageSettings.System.KEY_BACK_LONG_PRESS_ACTION), false, this,
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(LineageSettings.System.getUriFor(
+                    LineageSettings.System.KEY_BACK_DOUBLE_TAP_ACTION), false, this,
+                    UserHandle.USER_ALL);
+            resolver.registerContentObserver(LineageSettings.System.getUriFor(
                     LineageSettings.System.KEY_HOME_LONG_PRESS_ACTION), false, this,
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(LineageSettings.System.getUriFor(
@@ -1072,17 +1076,45 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
     }
 
-    private void interceptBackKeyDown(KeyEvent event) {
-        mLogger.count("key_back_down", 1);
-        // Reset back key state for long press
-        mBackKeyHandled = false;
+    private boolean mBackDoubleTapPending;
+    private final Runnable mBackDoubleTapTimeoutRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mBackDoubleTapPending) {
+                mBackDoubleTapPending = false;
+                mBackKeyHandled = false;
+            }
+        }
+    };
 
-        if (hasLongPressOnBackBehavior() && !mHandler.hasMessages(MSG_BACK_LONG_PRESS)) {
+    private boolean interceptBackKeyDown(KeyEvent event) {
+        mLogger.count("key_back_down", 1);
+
+        if (event.getRepeatCount() == 0) {
+            if (mBackDoubleTapPending) {
+                mBackDoubleTapPending = false;
+                mHandler.removeCallbacks(mBackDoubleTapTimeoutRunnable);
+                if (event.getDisplayId() == DEFAULT_DISPLAY && mBackDoubleTapAction != Action.APP_SWITCH) {
+                    cancelPreloadRecentApps();
+                }
+                mBackKeyHandled = true;
+                performKeyAction(mBackDoubleTapAction, event);
+            } else if (event.getDisplayId() == DEFAULT_DISPLAY
+                    && mBackDoubleTapAction == Action.APP_SWITCH) {
+                preloadRecentApps();
+            }
+        } else if (hasLongPressOnBackBehavior() && !mHandler.hasMessages(MSG_BACK_LONG_PRESS)) {
+            if (event.getDisplayId() == DEFAULT_DISPLAY
+                    && mBackLongPressAction == Action.APP_SWITCH) {
+                preloadRecentApps();
+            }
             Message msg = mHandler.obtainMessage(MSG_BACK_LONG_PRESS, event);
             msg.setAsynchronous(true);
             mHandler.sendMessageDelayed(msg,
                     ViewConfiguration.get(mContext).getDeviceGlobalActionKeyTimeout());
         }
+
+        return mBackKeyHandled;
     }
 
     // returns true if the key was handled and should not be passed to the user
@@ -1091,8 +1123,17 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         // Cache handled state
         boolean handled = mBackKeyHandled;
 
-        // Reset back long press state
-        cancelPendingBackKeyAction();
+        if (handled) {
+            return true;
+        } else {
+            mBackKeyHandled = false;
+            mHandler.removeMessages(MSG_BACK_LONG_PRESS);
+        }
+
+        if (event.isCanceled()) {
+            Log.i(TAG, "Ignoring BACK; event canceled.");
+            return handled;
+        }
 
         if (mHasFeatureWatch) {
             TelecomManager telecomManager = getTelecommService();
@@ -1113,6 +1154,14 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     return telecomManager.endCall();
                 }
             }
+        }
+
+        // Delay handling back if a double-tap is possible.
+        if (mBackDoubleTapAction != Action.NOTHING && !mBackDoubleTapPending) {
+            mHandler.removeCallbacks(mBackDoubleTapTimeoutRunnable); // just in case
+            mBackDoubleTapPending = true;
+            mHandler.postDelayed(mBackDoubleTapTimeoutRunnable,
+                    ViewConfiguration.getDoubleTapTimeout());
         }
 
         if (mAutofillManagerInternal != null && event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
@@ -1209,13 +1258,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         mPowerKeyHandled = false;
         if (mPowerKeyWakeLock.isHeld()) {
             mPowerKeyWakeLock.release();
-        }
-    }
-
-    private void cancelPendingBackKeyAction() {
-        if (!mBackKeyHandled) {
-            mBackKeyHandled = true;
-            mHandler.removeMessages(MSG_BACK_LONG_PRESS);
         }
     }
 
@@ -1510,6 +1552,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     private void backLongPress(KeyEvent event) {
         mBackKeyHandled = true;
+
+        if (event.getDisplayId() == DEFAULT_DISPLAY && mBackLongPressAction != Action.APP_SWITCH) {
+            cancelPreloadRecentApps();
+        }
 
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, false,
                 "Back - Long Press");
@@ -2828,10 +2874,19 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             mBackLongPressAction = Action.NOTHING;
         }
 
+        mBackDoubleTapAction = Action.fromIntSafe(res.getInteger(
+                org.lineageos.platform.internal.R.integer.config_doubleTapOnBackBehavior));
+        if (mBackDoubleTapAction.ordinal() > Action.SLEEP.ordinal()) {
+            mBackDoubleTapAction = Action.NOTHING;
+        }
+
         if (hasBack || hasNavigationBar()) {
             mBackLongPressAction = Action.fromSettings(resolver,
                     LineageSettings.System.KEY_BACK_LONG_PRESS_ACTION,
                     mBackLongPressAction);
+            mBackDoubleTapAction = Action.fromSettings(resolver,
+                    LineageSettings.System.KEY_BACK_DOUBLE_TAP_ACTION,
+                    mBackDoubleTapAction);
         }
 
         mHomeLongPressAction = Action.fromIntSafe(res.getInteger(
@@ -4559,11 +4614,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 }
 
                 if (down) {
-                    interceptBackKeyDown(event);
+                    boolean handled = interceptBackKeyDown(event);
 
                     // Don't pass repeated events to app if user has custom long press action
                     // set up in settings
-                    if (event.getRepeatCount() > 0 && hasLongPressOnBackBehavior()) {
+                    if (handled || (event.getRepeatCount() > 0 && hasLongPressOnBackBehavior())) {
                         result &= ~ACTION_PASS_TO_USER;
                     }
                 } else {
