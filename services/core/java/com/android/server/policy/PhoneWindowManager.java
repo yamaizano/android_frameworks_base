@@ -938,6 +938,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     LineageSettings.System.KEY_HOME_DOUBLE_TAP_ACTION), false, this,
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(LineageSettings.System.getUriFor(
+                    LineageSettings.System.FORCE_SHOW_NAVBAR), false, this,
+                    UserHandle.USER_ALL);
+            resolver.registerContentObserver(LineageSettings.System.getUriFor(
                     LineageSettings.System.KEY_MENU_ACTION), false, this,
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(LineageSettings.System.getUriFor(
@@ -2812,37 +2815,24 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         final boolean hasMenu = (activeHardwareKeys & KEY_MASK_MENU) != 0;
         final boolean hasAssist = (activeHardwareKeys & KEY_MASK_ASSIST) != 0;
         final boolean hasAppSwitch = (activeHardwareKeys & KEY_MASK_APP_SWITCH) != 0;
+        final boolean hasHome = (activeHardwareKeys & KEY_MASK_HOME) != 0;
+        final boolean hasBack = (activeHardwareKeys & KEY_MASK_BACK) != 0;
 
         final ContentResolver resolver = mContext.getContentResolver();
         final Resources res = mContext.getResources();
 
         // Initialize all assignments to sane defaults.
-        mEdgeLongSwipeAction = Action.NOTHING;
-
-        mMenuPressAction = Action.MENU;
-
-        mMenuLongPressAction = Action.fromIntSafe(res.getInteger(
-                org.lineageos.platform.internal.R.integer.config_longPressOnMenuBehavior));
-
-        if (mMenuLongPressAction == Action.NOTHING &&
-               (hasMenu && !hasAssist)) {
-            mMenuLongPressAction = Action.SEARCH;
-        }
-        mAssistPressAction = Action.SEARCH;
-        mAssistLongPressAction = Action.VOICE_SEARCH;
-        mAppSwitchPressAction = Action.APP_SWITCH;
-        mAppSwitchLongPressAction = Action.fromIntSafe(res.getInteger(
-                org.lineageos.platform.internal.R.integer.config_longPressOnAppSwitchBehavior));
-
         mBackLongPressAction = Action.fromIntSafe(res.getInteger(
                 org.lineageos.platform.internal.R.integer.config_longPressOnBackBehavior));
         if (mBackLongPressAction.ordinal() > Action.SLEEP.ordinal()) {
             mBackLongPressAction = Action.NOTHING;
         }
 
-        mBackLongPressAction = Action.fromSettings(resolver,
-                LineageSettings.System.KEY_BACK_LONG_PRESS_ACTION,
-                mBackLongPressAction);
+        if (hasBack || hasNavigationBar()) {
+            mBackLongPressAction = Action.fromSettings(resolver,
+                    LineageSettings.System.KEY_BACK_LONG_PRESS_ACTION,
+                    mBackLongPressAction);
+        }
 
         mHomeLongPressAction = Action.fromIntSafe(res.getInteger(
                 org.lineageos.platform.internal.R.integer.config_longPressOnHomeBehavior));
@@ -2856,12 +2846,23 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             mHomeDoubleTapAction = Action.NOTHING;
         }
 
-        mHomeLongPressAction = Action.fromSettings(resolver,
-                LineageSettings.System.KEY_HOME_LONG_PRESS_ACTION,
-                mHomeLongPressAction);
-        mHomeDoubleTapAction = Action.fromSettings(resolver,
-                LineageSettings.System.KEY_HOME_DOUBLE_TAP_ACTION,
-                mHomeDoubleTapAction);
+        if (hasHome || hasNavigationBar()) {
+            mHomeLongPressAction = Action.fromSettings(resolver,
+                    LineageSettings.System.KEY_HOME_LONG_PRESS_ACTION,
+                    mHomeLongPressAction);
+            mHomeDoubleTapAction = Action.fromSettings(resolver,
+                    LineageSettings.System.KEY_HOME_DOUBLE_TAP_ACTION,
+                    mHomeDoubleTapAction);
+        }
+
+        mMenuPressAction = Action.MENU;
+        mMenuLongPressAction = Action.fromIntSafe(res.getInteger(
+                org.lineageos.platform.internal.R.integer.config_longPressOnMenuBehavior));
+
+        if (mMenuLongPressAction == Action.NOTHING &&
+               (hasMenu && !hasAssist)) {
+            mMenuLongPressAction = Action.SEARCH;
+        }
 
         if (hasMenu) {
             mMenuPressAction = Action.fromSettings(resolver,
@@ -2871,6 +2872,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     LineageSettings.System.KEY_MENU_LONG_PRESS_ACTION,
                     mMenuLongPressAction);
         }
+
+        mAssistPressAction = Action.SEARCH;
+        mAssistLongPressAction = Action.VOICE_SEARCH;
+
         if (hasAssist) {
             mAssistPressAction = Action.fromSettings(resolver,
                     LineageSettings.System.KEY_ASSIST_ACTION,
@@ -2879,18 +2884,29 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     LineageSettings.System.KEY_ASSIST_LONG_PRESS_ACTION,
                     mAssistLongPressAction);
         }
-        if (hasAppSwitch) {
+
+        mAppSwitchPressAction = Action.APP_SWITCH;
+        mAppSwitchLongPressAction = Action.fromIntSafe(res.getInteger(
+                org.lineageos.platform.internal.R.integer.config_longPressOnAppSwitchBehavior));
+        if (mAppSwitchLongPressAction.ordinal() > Action.SLEEP.ordinal()) {
+            mAppSwitchLongPressAction = Action.NOTHING;
+        }
+
+        if (hasAppSwitch || hasNavigationBar()) {
             mAppSwitchPressAction = Action.fromSettings(resolver,
                     LineageSettings.System.KEY_APP_SWITCH_ACTION,
                     mAppSwitchPressAction);
+            mAppSwitchLongPressAction = Action.fromSettings(resolver,
+                    LineageSettings.System.KEY_APP_SWITCH_LONG_PRESS_ACTION,
+                    mAppSwitchLongPressAction);
         }
-        mAppSwitchLongPressAction = Action.fromSettings(resolver,
-                LineageSettings.System.KEY_APP_SWITCH_LONG_PRESS_ACTION,
-                mAppSwitchLongPressAction);
 
-        mEdgeLongSwipeAction = Action.fromSettings(resolver,
-                LineageSettings.System.KEY_EDGE_LONG_SWIPE_ACTION,
-                mEdgeLongSwipeAction);
+        mEdgeLongSwipeAction = Action.NOTHING;
+        if (hasNavigationBar()) {
+            mEdgeLongSwipeAction = Action.fromSettings(resolver,
+                    LineageSettings.System.KEY_EDGE_LONG_SWIPE_ACTION,
+                    mEdgeLongSwipeAction);
+        }
 
         mShortPressOnWindowBehavior = SHORT_PRESS_WINDOW_NOTHING;
         if (mPackageManager.hasSystemFeature(FEATURE_PICTURE_IN_PICTURE)) {
